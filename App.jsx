@@ -122,7 +122,8 @@ function AppInner() {
     Kkukkukk: require('./fonts/kkukkukk/MemomentKkukkukk.otf'),
   });
 
-  /* ── 설정 시간 감지 → 룰렛 표시 (자동/수동 모두) ── */
+  /* ── 설정 시간 감지 → 룰렛 표시 ──
+     정책: 오늘 미션이 이미 있으면 시간을 바꿔도 룰렛을 다시 띄우지 않음 */
   useEffect(() => {
     const id = setInterval(() => {
       const now = new Date();
@@ -130,16 +131,16 @@ function AppInner() {
       if (
         now.getHours()   === missionTime.hour &&
         now.getMinutes() === missionTime.minute &&
-        lastTriggeredRef.current !== key
+        lastTriggeredRef.current !== key &&
+        !hasMission   // 오늘 미션이 없을 때만 룰렛 트리거
       ) {
         lastTriggeredRef.current = key;
-        setHasMission(false);
         setShowRoulette(true);
         setTab('mission');
       }
     }, 1000);
     return () => clearInterval(id);
-  }, [missionTime, autoRoulette]);
+  }, [missionTime, hasMission]);
 
   const statusStyle  = scheme === 'dark' ? 'light' : 'dark';
   const navBg        = C.isDark ? '#0a0a12' : C.surface;
@@ -256,7 +257,11 @@ function AppInner() {
                 mission={currentMission}
                 userMissionId={currentMissionId}
                 onBack={pop}
-                onVerified={() => loadTodayMission()}
+                onVerified={(photoUri) => {
+                  // photoUri로 즉시 버튼 숨김 (loadTodayMission 응답 전에도 반영)
+                  if (photoUri) setCurrentMission(prev => ({ ...prev, photoUrl: photoUri }));
+                  loadTodayMission();
+                }}
               />
             </View>
           )}

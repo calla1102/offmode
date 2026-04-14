@@ -6,6 +6,7 @@ import com.offmode.mission.UserMissionRepository;
 import com.offmode.user.User;
 import com.offmode.user.UserService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -16,11 +17,13 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class FeedService {
@@ -46,8 +49,8 @@ public class FeedService {
             throw new RuntimeException("권한 없음");
         }
 
-        if ("verified".equals(mission.getStatus())) {
-            throw new RuntimeException("이미 인증한 미션입니다");
+        if (verificationRepository.existsByUserMissionId(userMissionId)) {
+            throw new RuntimeException("이미 인증 사진을 올린 미션입니다");
         }
 
         // 사진 저장
@@ -130,7 +133,19 @@ public class FeedService {
     }
 
     public List<FeedItemDto> getFeed(Long userId, int page, int size) {
-        List<FeedItemDto> items = verificationRepository.findFeedItems(PageRequest.of(page, size), userId);
+        // 오늘 내 미션 텍스트 조회 — 없으면 빈 피드 반환
+        LocalDateTime todayStart = LocalDate.now().atStartOfDay();
+        LocalDateTime todayEnd   = LocalDate.now().plusDays(1).atStartOfDay();
+        UserMission todayMission = userMissionRepository
+                .findFirstByUserIdAndAssignedAtBetweenOrderByAssignedAtDesc(userId, todayStart, todayEnd)
+                .orElse(null);
+        log.info("[GET-FEED] userId={} 오늘 미션={}", userId,
+                todayMission == null ? "없음" : todayMission.getMissionText() + " (id=" + todayMission.getId() + ")");
+        if (todayMission == null) return List.of();
+
+        String missionText = todayMission.getMissionText();
+        List<FeedItemDto> items = verificationRepository.findFeedItems(PageRequest.of(page, size), userId, missionText);
+        log.info("[GET-FEED] 필터 missionText='{}' → 조회된 피드 {}건", missionText, items.size());
         if (items.isEmpty()) return items;
 
         // 한 번의 쿼리로 전체 리액션 요약 조회

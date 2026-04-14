@@ -9,6 +9,8 @@ import java.util.List;
 
 public interface VerificationRepository extends JpaRepository<Verification, Long> {
 
+    boolean existsByUserMissionId(Long userMissionId);
+
     @Query("""
         SELECT new com.offmode.feed.FeedItemDto(
             v.id, v.photoUrl, v.caption, v.createdAt,
@@ -22,7 +24,8 @@ public interface VerificationRepository extends JpaRepository<Verification, Long
         FROM Verification v
         JOIN v.user u
         JOIN v.userMission um
+        WHERE um.missionText = :missionText
         ORDER BY v.createdAt DESC
     """)
-    List<FeedItemDto> findFeedItems(Pageable pageable, @Param("userId") Long userId);
+    List<FeedItemDto> findFeedItems(Pageable pageable, @Param("userId") Long userId, @Param("missionText") String missionText);
 }

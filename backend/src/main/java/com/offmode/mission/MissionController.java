@@ -44,4 +44,11 @@ public class MissionController {
     public ResponseEntity<List<Mission>> pool() {
         return ResponseEntity.ok(missionService.getPool());
     }
+
+    // GET /api/missions/weighted-pool
+    // 사용자의 최근 수행 이력 기반으로 weight 가 낮은 미션은 룰렛에서 뽑힐 확률이 낮음
+    @GetMapping("/weighted-pool")
+    public ResponseEntity<List<MissionWeightDto>> weightedPool(@AuthenticationPrincipal Long userId) {
+        return ResponseEntity.ok(missionService.getWeightedPool(userId));
+    }
 }

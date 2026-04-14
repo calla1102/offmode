@@ -170,7 +170,7 @@ export default function VerifyScreen({ mission, userMissionId, onBack, onVerifie
     }
     setDone(true);
   };
-  const handleDone   = () => { onVerified?.(); onBack?.(); };
+  const handleDone   = () => { onVerified?.(photoUri); onBack?.(); };
 
   return (
     <View style={styles.screen}>

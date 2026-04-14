@@ -50,10 +50,14 @@ public interface UserMissionRepository extends JpaRepository<UserMission, Long> 
         WHERE um.user.id = :userId AND um.assignedAt >= :start AND um.assignedAt < :end
         ORDER BY um.assignedAt DESC
     """)
-    Optional<UserMissionDto> findTodayWithPhoto(
+    List<UserMissionDto> findTodayWithPhoto(
             @Param("userId") Long userId,
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end);
+
+    // 가중치 계산용: 유저가 수행한 미션 텍스트별 가장 최근 assignedAt
+    @Query("SELECT um.missionText, MAX(um.assignedAt) FROM UserMission um WHERE um.user.id = :userId GROUP BY um.missionText")
+    List<Object[]> findLatestAssignedAtPerMissionText(@Param("userId") Long userId);
 
     // 히스토리 + 인증 사진 포함
     @Query("""

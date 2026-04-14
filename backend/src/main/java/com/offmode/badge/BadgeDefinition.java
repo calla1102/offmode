@@ -50,8 +50,8 @@ public enum BadgeDefinition {
 
     // ── 5. 유니크 ─────────────────────────────────────────────
     OFFMODE_ENTRY(
-            "unique_entry", "offmode 입성", "로그인 마스터",
-            "첫 미션 수락", null, "unique"),
+            "unique_entry", "offmode 입성", "루틴 관리인",
+            "첫 미션 수락", "badge_activity_routine_manager.png", "unique"),
     SKY_COLLECTOR(
             "unique_sky", "하늘 수집가", "하늘 사진 전문가",
             "하늘 사진 찍기 미션 10회 완료", null, "unique"),

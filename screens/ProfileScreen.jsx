@@ -4,8 +4,6 @@ import {
   TouchableOpacity, Dimensions, Image, Modal, TextInput, Keyboard,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Asset } from 'expo-asset';
-import { SvgUri } from 'react-native-svg';
 import { useColors } from '../utils/useColors';
 import { api, BASE_URL } from '../utils/api';
 import T from '../components/ThemedText';
@@ -26,6 +24,7 @@ const BADGE_IMAGE_MAP = {
   'badge_explore_lv02_explorer.png':          require('../assets/badge/badge_explore_lv02_explorer.png'),
   'badge_real_world_ruler.png':               require('../assets/badge/badge_real_world_ruler.png'),
   'badge_unique_speedrunner_streakking.png':  require('../assets/badge/badge_unique_speedrunner_streakking.png'),
+  'badge_activity_routine_manager.png':    require('../assets/badge/badge_activity_routine_manager.png'),
   'image_45.png': require('../assets/expansion.png'),
 };
 
@@ -119,18 +118,9 @@ function formatJoinDate(val) {
 }
 
 /* ── SVG 아바타 렌더러 ───────────────────────────────── */
-function AvatarSvg({ source, width = 80, height = 80 }) {
-  const [uri, setUri] = useState(() => {
-    const a = Asset.fromModule(source);
-    return a.localUri || a.uri || null;
-  });
-  useEffect(() => {
-    const a = Asset.fromModule(source);
-    if (a.localUri || a.uri) { setUri(a.localUri || a.uri); return; }
-    a.downloadAsync().then(() => setUri(a.localUri || a.uri));
-  }, [source]);
-  if (!uri) return <View style={{ width, height }} />;
-  return <SvgUri width={width} height={height} uri={uri} />;
+function AvatarSvg({ source: SvgComponent, width = 80, height = 80 }) {
+  if (!SvgComponent) return <View style={{ width, height }} />;
+  return <SvgComponent width={width} height={height} />;
 }
 
 /* ── 프로필 편집 모달 ────────────────────────────────── */
@@ -639,13 +629,13 @@ function makeAllStyles(C) {
     mainTitleBadgeImg:  { width: 48, height: 48 },
     mainTitleName:      { fontFamily: F, fontSize: 15, color: C.text, marginBottom: 2 },
     mainTitleDesc:      { fontFamily: F, fontSize: 11, color: C.textSub },
-    badgeGrid:          { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-    badgeCard:          { width: Math.floor((width - 32 - 32 - 16) / 3), backgroundColor: C.surface2, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 8, alignItems: 'center', gap: 5 },
+    badgeGrid:          { flexDirection: 'row', flexWrap: 'wrap' },
+    badgeCard:          { width: Math.floor((width - 64) / 3) - 8, marginRight: 8, marginBottom: 8, backgroundColor: C.surface2, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 8, alignItems: 'center', gap: 5 },
     badgeCardLocked:    { opacity: 0.6 },
     cardZoomIconWrap: { position: 'absolute', top: 6, right: 6, opacity: 0.6, zIndex: 1},
     cardZoomIcon: { width: 14, height: 14 },
-    badgeImg:            { width: Math.floor((width - 32 - 32 - 16) / 3) - 16, height: 44 },
-    badgeImgPlaceholder: { width: Math.floor((width - 32 - 32 - 16) / 3) - 16, height: 44, alignItems: 'center', justifyContent: 'center' },
+    badgeImg:            { width: Math.floor((width - 64) / 3) - 24, height: 44 },
+    badgeImgPlaceholder: { width: Math.floor((width - 64) / 3) - 24, height: 44, alignItems: 'center', justifyContent: 'center' },
     badgeName:          { fontFamily: F, fontSize: 11, color: C.text, textAlign: 'center' },
     badgeDesc:          { fontFamily: F, fontSize: 10, color: C.textSub, textAlign: 'center', lineHeight: 13, opacity: 0.7 },
     badgeLocked:        { fontFamily: F, fontSize: 9, color: C.textSub, opacity: 0.5 },

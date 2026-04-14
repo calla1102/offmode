@@ -11,6 +11,20 @@ import T from '../components/ThemedText';
 
 const F = 'Kkukkukk';
 
+const BADGE_IMAGES = {
+  'badge_explore_lv01_initiate.png':        require('../assets/badge/badge_explore_lv01_initiate.png'),
+  'badge_explore_lv02_explorer.png':        require('../assets/badge/badge_explore_lv02_explorer.png'),
+  'badge_real_world_ruler.png':             require('../assets/badge/badge_real_world_ruler.png'),
+  'badge_activity_walker_walker.png':       require('../assets/badge/badge_activity_walker_walker.png'),
+  'badge_activity_beauty_curator.png':      require('../assets/badge/badge_activity_beauty_curator.png'),
+  'badge_activity_local_hipster.png':       require('../assets/badge/badge_activity_local_hipster.png'),
+  'badge_time_dawn_dawnmaster.png':         require('../assets/badge/badge_time_dawn_dawnmaster.png'),
+  'badge_time_afternoon_freeman.png':       require('../assets/badge/badge_time_afternoon_freeman.png'),
+  'badge_time_evening_timewarden.png':      require('../assets/badge/badge_time_evening_timewarden.png'),
+  'badge_unique_speedrunner_streakking.png':require('../assets/badge/badge_unique_speedrunner_streakking.png'),
+  'badge_activity_routine_manager.png':    require('../assets/badge/badge_activity_routine_manager.png'),
+};
+
 const TICKER_MESSAGES = [
   '📸  사진으로 인증하기', '✨  하루 하나의 미션', '🔥  오늘도 갓생 도전',
   '⚡️  미션 완료하고 배지 획득', '🌙  스마트폰 내려놓는 시간',
@@ -300,9 +314,13 @@ export default function MissionScreen({ missionTime, onOpenTimeSettings, onOpenR
                         { border: C.blueBorder,   bg: C.blueFaint   },
                         { border: C.greenBorder,  bg: C.greenFaint  },
                       ][i % 3];
+                      const badgeImg = b.imageFile ? BADGE_IMAGES[b.imageFile] : null;
                       return (
                         <View key={b.key ?? i} style={[styles.badge, { borderColor: colors.border, backgroundColor: colors.bg }]}>
-                          <Text style={styles.badgeEmoji}>🏅</Text>
+                          {badgeImg
+                            ? <Image source={badgeImg} style={styles.badgeImg} resizeMode="contain" />
+                            : <Text style={styles.badgeEmoji}>🏅</Text>
+                          }
                         </View>
                       );
                     })}
@@ -313,7 +331,9 @@ export default function MissionScreen({ missionTime, onOpenTimeSettings, onOpenR
                 <View style={styles.verifiedResult}>
                   {currentMission.photoUrl ? (
                     <Image
-                      source={{ uri: `${BASE_URL}${currentMission.photoUrl}` }}
+                      source={{ uri: currentMission.photoUrl.startsWith('/')
+                        ? `${BASE_URL}${currentMission.photoUrl}`
+                        : currentMission.photoUrl }}
                       style={styles.verifiedPhoto}
                       resizeMode="cover"
                     />
@@ -394,6 +414,7 @@ function makeAllStyles(C) {
     titleTagText: { fontFamily: F, fontSize: 12, color: C.purple, letterSpacing: 0.3 },
     badges:      { flexDirection: 'row', gap: 6 },
     badge:       { width: 34, height: 34, borderRadius: 17, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+    badgeImg:    { width: 26, height: 26 },
     badgeEmoji:  { fontSize: 16 },
     verifyBtn:   { borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
     verifyBtnText: { fontFamily: F, color: '#000', fontSize: 17, letterSpacing: 0.5 },

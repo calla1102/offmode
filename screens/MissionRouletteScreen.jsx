@@ -41,7 +41,14 @@ function SlotMachine({ onDone, autoSpin = true, missions }) {
     setStarted(true);
     setSpinning(true);
     setLanded(false);
-    const targetMissionIdx = Math.floor(Math.random() * missions.length);
+    // 가중치 기반 랜덤 선택: weight가 낮은 미션은 뽑힐 확률이 낮음
+    const totalWeight = missions.reduce((sum, m) => sum + (m.weight ?? 1), 0);
+    let r = Math.random() * totalWeight;
+    let targetMissionIdx = missions.length - 1;
+    for (let i = 0; i < missions.length; i++) {
+      r -= (missions[i].weight ?? 1);
+      if (r <= 0) { targetMissionIdx = i; break; }
+    }
     const targetBlockStart = (REPEATS - 2) * missions.length;
     const targetItemIdx    = targetBlockStart + targetMissionIdx;
     const targetY          = -(targetItemIdx * ITEM_H) + ITEM_H;
@@ -135,9 +142,14 @@ export default function MissionRouletteScreen({ onStart, onSkip, autoSpin = true
       toValue: 1, duration: 600, easing: Easing.out(Easing.cubic), useNativeDriver: true,
     }).start();
 
-    api.get('/api/missions/pool')
+    api.get('/api/missions/weighted-pool')
       .then(data => { setMissions(data); setLoadingMissions(false); })
-      .catch(e => { console.warn('미션 풀 로딩 실패:', e); setLoadingMissions(false); });
+      .catch(() => {
+        // weighted-pool 실패 시 기본 pool 폴백 (weight 없이 균등 확률)
+        api.get('/api/missions/pool')
+          .then(data => { setMissions(data); setLoadingMissions(false); })
+          .catch(e => { console.warn('미션 풀 로딩 실패:', e); setLoadingMissions(false); });
+      });
   }, []);
 
   const handleDone = (mission) => {

@@ -228,7 +228,9 @@ function GridCard({ item, onReact, onVerify }) {
           }
         </View>
       </View>
-      {item.caption && <T v="caption" style={{ paddingHorizontal: 10, paddingTop: 7 }} numberOfLines={1}>{item.caption}</T>}
+      <View style={grid.captionArea}>
+        {item.caption ? <T v="caption" numberOfLines={1}>{item.caption}</T> : null}
+      </View>
       <View style={grid.reactions}>
         {item.reactions.map(r => (
           <TouchableOpacity key={r.emoji} style={[grid.reactionBtn, r.myReact && grid.reactionBtnActive]} onPress={() => onReact(item.id, r.emoji)} activeOpacity={0.7}>
@@ -277,6 +279,7 @@ function makeGridStyles(C) {
     tsWrap:   { position: 'absolute', bottom: 7, left: 7, right: 7, flexDirection: 'row', backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 },
     tsTime:   { fontFamily: F, fontSize: 11, color: C.green },
     tsLabel:  { fontFamily: F, fontSize: 11, color: '#fff' },
+    captionArea: { height: 28, paddingHorizontal: 10, paddingTop: 7, justifyContent: 'flex-start' },
     caption:  { fontFamily: F, fontSize: 11, color: C.textSub, paddingHorizontal: 10, paddingTop: 7 },
     reactions: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, padding: 8 },
     reactionBtn: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: C.surface2, borderWidth: 1, borderColor: C.border, borderRadius: 16, paddingHorizontal: 7, paddingVertical: 3 },
@@ -292,11 +295,16 @@ function makeGridStyles(C) {
 export default function FeedScreen() {
   const C = useColors();
   const s = useMemo(() => makeSStyles(C), [C]);
-  const [items, setItems]   = useState([]);
-  const [filter, setFilter] = useState('전체');
-  const [loading, setLoading] = useState(true);
+  const [items,        setItems]        = useState([]);
+  const [filter,       setFilter]       = useState('전체');
+  const [loading,      setLoading]      = useState(true);
+  const [todayMission, setTodayMission] = useState(null);
 
   useEffect(() => {
+    api.get('/api/missions/today')
+      .then(setTodayMission)
+      .catch(() => {});
+
     api.get('/api/feed')
       .then(data => setItems(data.map(apiItemToCard)))
       .catch(e => console.warn('피드 로딩 실패:', e))
@@ -381,8 +389,8 @@ export default function FeedScreen() {
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={s.missionBar}>
           <View style={s.missionNameRow}>
-            <Text style={s.missionIcon}>{featured?.missionIcon ?? '📋'}</Text>
-            <T v="section" style={{ flex: 1 }} numberOfLines={1}>{featured?.missionText ?? '오늘의 미션'}</T>
+            <Text style={s.missionIcon}>{todayMission?.missionIcon ?? featured?.missionIcon ?? '📋'}</Text>
+            <T v="section" style={{ flex: 1 }} numberOfLines={1}>{todayMission?.missionText ?? featured?.missionText ?? '오늘의 미션'}</T>
           </View>
           <View style={s.participantRow}>
             <View style={s.progressTrack}>

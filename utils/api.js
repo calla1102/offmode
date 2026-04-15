@@ -8,7 +8,7 @@ const DEV_HOST = '172.28.70.47';
 
 export const BASE_URL = __DEV__
   ? `http://${DEV_HOST}:8080`
-  : 'https://RAILWAY_URL_HERE.railway.app';  // Railway 배포 후 실제 URL로 교체
+  : 'https://offmode-production.up.railway.app';
 
 const TOKEN_KEY = 'auth_token';
 

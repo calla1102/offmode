@@ -12,9 +12,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-import software.amazon.awssdk.core.sync.RequestBody;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -37,18 +34,11 @@ public class FeedService {
     private final UserMissionRepository         userMissionRepository;
     private final UserService                   userService;
     private final BadgeService                  badgeService;
-    private final S3Client                      s3Client;          // null이면 로컬 저장
 
     private static final int VERIFY_THRESHOLD = 1; // 이 수 이상 피어 인증 → 미션 완료
 
     @Value("${file.upload-dir:./uploads}")
     private String uploadDir;
-
-    @Value("${aws.s3.bucket:}")
-    private String s3Bucket;
-
-    @Value("${aws.s3.region:ap-northeast-2}")
-    private String s3Region;
 
     @Transactional
     public Verification verify(Long userId, Long userMissionId, MultipartFile photo, String caption) throws IOException {
@@ -63,28 +53,15 @@ public class FeedService {
             throw new RuntimeException("이미 인증 사진을 올린 미션입니다");
         }
 
-        // 사진 저장 (S3 우선, 없으면 로컬)
+        // 사진 저장 (로컬) — S3는 추후 추가
         String photoUrl = null;
         if (photo != null && !photo.isEmpty()) {
             String ext      = getExtension(photo.getOriginalFilename());
-            String filename = "verifications/" + UUID.randomUUID() + ext;
-            if (s3Client != null && !s3Bucket.isBlank()) {
-                s3Client.putObject(
-                        PutObjectRequest.builder()
-                                .bucket(s3Bucket)
-                                .key(filename)
-                                .contentType(photo.getContentType())
-                                .build(),
-                        RequestBody.fromInputStream(photo.getInputStream(), photo.getSize())
-                );
-                photoUrl = "https://" + s3Bucket + ".s3." + s3Region + ".amazonaws.com/" + filename;
-            } else {
-                // 로컬 저장 (dev)
-                Path dir = Paths.get(uploadDir).toAbsolutePath();
-                Files.createDirectories(dir);
-                photo.transferTo(dir.resolve(UUID.randomUUID() + ext));
-                photoUrl = "/uploads/" + UUID.randomUUID() + ext;
-            }
+            String filename = UUID.randomUUID() + ext;
+            Path   dir      = Paths.get(uploadDir).toAbsolutePath();
+            Files.createDirectories(dir);
+            photo.transferTo(dir.resolve(filename));
+            photoUrl = "/uploads/" + filename;
         }
 
         // 인증 저장 (상태는 "pending" 유지 — 피어 인증 후 완료 처리)

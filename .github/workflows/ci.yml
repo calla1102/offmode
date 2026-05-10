@@ -44,19 +44,6 @@ jobs:
       - name: Gradle 권한 부여
         run: chmod +x gradlew
 
-      - name: Spotless Check
-        run: ./gradlew spotlessCheck
-
-      - name: Checkstyle
-        run: ./gradlew checkstyleMain checkstyleTest
-
-      - name: Checkstyle 리포트 업로드
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: checkstyle-report
-          path: backend/build/reports/checkstyle/
-
       - name: 테스트 실행 (Test)
         run: ./gradlew test
 

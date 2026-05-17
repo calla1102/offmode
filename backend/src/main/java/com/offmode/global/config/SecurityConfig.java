@@ -45,12 +45,10 @@ public class SecurityConfig {
                 exception
                     .authenticationEntryPoint(
                         (request, response, authException) ->
-                            writeErrorResponse(
-                                response, ErrorStatus.UNAUTHORIZED, request.getRequestURI()))
+                            writeErrorResponse(response, ErrorStatus.UNAUTHORIZED))
                     .accessDeniedHandler(
                         (request, response, accessDeniedException) ->
-                            writeErrorResponse(
-                                response, ErrorStatus.AUTH_ACCESS_DENIED, request.getRequestURI())))
+                            writeErrorResponse(response, ErrorStatus.AUTH_ACCESS_DENIED)))
         .headers(h -> h.frameOptions(FrameOptionsConfig::disable)) // H2 콘솔용
         .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
         .build();
@@ -68,8 +66,7 @@ public class SecurityConfig {
     return source;
   }
 
-  private void writeErrorResponse(
-      HttpServletResponse response, ErrorStatus errorStatus, String path)
+  private void writeErrorResponse(HttpServletResponse response, ErrorStatus errorStatus)
       throws java.io.IOException {
     response.setStatus(errorStatus.getHttpStatus().value());
     response.setContentType(MediaType.APPLICATION_JSON_VALUE);

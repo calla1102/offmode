@@ -90,6 +90,9 @@ public class SecurityConfig {
   }
 
   private List<String> getCorsAllowedOriginPatterns() {
+    if (!isDevProfile()) {
+      return List.of();
+    }
     return getStringListProperty("offmode.security.cors.allowed-origin-patterns");
   }
 

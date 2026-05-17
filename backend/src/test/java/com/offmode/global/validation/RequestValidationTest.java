@@ -42,6 +42,15 @@ class RequestValidationTest {
         .anyMatch(violation -> violation.getPropertyPath().toString().equals("emoji"));
   }
 
+  @Test
+  void reactRequestRejectsEmojiLongerThanColumnLength() throws Exception {
+    ReactRequest request = new ReactRequest();
+    setField(request, "emoji", "12345678901");
+
+    assertThat(validator.validate(request))
+        .anyMatch(violation -> violation.getPropertyPath().toString().equals("emoji"));
+  }
+
   private void setField(Object target, String name, Object value) throws Exception {
     Field field = target.getClass().getDeclaredField(name);
     field.setAccessible(true);

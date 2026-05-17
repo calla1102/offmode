@@ -10,11 +10,13 @@ import java.io.ByteArrayOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
+import java.util.stream.Stream;
 import javax.imageio.ImageIO;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.util.unit.DataSize;
 
 class ImageUploadServiceTest {
 
@@ -28,7 +30,9 @@ class ImageUploadServiceTest {
     String url = service.uploadVerificationImage(file);
 
     assertThat(url).startsWith("/uploads/").endsWith(".png");
-    assertThat(Files.list(tempDir)).hasSize(1);
+    try (Stream<Path> storedFiles = Files.list(tempDir)) {
+      assertThat(storedFiles).hasSize(1);
+    }
   }
 
   @Test
@@ -55,11 +59,27 @@ class ImageUploadServiceTest {
             e -> assertThat(e.getErrorStatus()).isEqualTo(ErrorStatus.FILE_INVALID_IMAGE));
   }
 
+  @Test
+  void uploadVerificationImageRejectsTooLargeFile() throws Exception {
+    ImageUploadService service = createService(DataSize.ofBytes(1));
+    MockMultipartFile file = new MockMultipartFile("photo", "mission.png", "image/png", pngBytes());
+
+    assertThatThrownBy(() -> service.uploadVerificationImage(file))
+        .isInstanceOfSatisfying(
+            BusinessException.class,
+            e -> assertThat(e.getErrorStatus()).isEqualTo(ErrorStatus.FILE_TOO_LARGE));
+  }
+
   private ImageUploadService createService() {
+    return createService(DataSize.ofMegabytes(10));
+  }
+
+  private ImageUploadService createService(DataSize maxImageSize) {
     ImageUploadService service = new ImageUploadService(Optional.empty());
     ReflectionTestUtils.setField(service, "uploadDir", tempDir.toString());
     ReflectionTestUtils.setField(service, "r2Bucket", "");
     ReflectionTestUtils.setField(service, "r2PublicUrl", "");
+    ReflectionTestUtils.setField(service, "maxImageSize", maxImageSize);
     return service;
   }
 

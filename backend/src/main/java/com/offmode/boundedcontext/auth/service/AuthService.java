@@ -7,8 +7,12 @@ import com.offmode.global.exception.BusinessException;
 import com.offmode.global.jwt.JwtProvider;
 import com.offmode.global.status.ErrorStatus;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.LocatorAdapter;
+import io.jsonwebtoken.ProtectedHeader;
 import java.math.BigInteger;
+import java.security.Key;
 import java.security.KeyFactory;
 import java.security.PublicKey;
 import java.security.spec.RSAPublicKeySpec;
@@ -42,6 +46,12 @@ public class AuthService {
 
   @Value("${apple.keys-url}")
   private String appleKeysUrl;
+
+  @Value("${apple.issuer:https://appleid.apple.com}")
+  private String appleIssuer;
+
+  @Value("${apple.request-timeout-seconds:5}")
+  private long appleRequestTimeoutSeconds;
 
   // ── Kakao ──────────────────────────────────────────────
   public AuthResponse kakaoLogin(String accessToken) {
@@ -82,54 +92,93 @@ public class AuthService {
 
   // ── Apple ──────────────────────────────────────────────
   public AuthResponse appleLogin(String identityToken, String fullName) {
+    if (identityToken == null || identityToken.isBlank()) {
+      throw new BusinessException(ErrorStatus.AUTH_APPLE_INVALID_TOKEN);
+    }
+
+    List<Map<String, Object>> applePublicKeys = fetchApplePublicKeys();
+
+    Claims claims;
     try {
-      // Apple 공개키 목록 조회
-      Map<?, ?> keysResponse =
-          webClientBuilder.build().get().uri(appleKeysUrl).retrieve().bodyToMono(Map.class).block();
-
-      List<?> keys = (List<?>) keysResponse.get("keys");
-
-      // identityToken 헤더에서 kid 추출
-      String[] parts = identityToken.split("\\.");
-      String headerJson = new String(Base64.getUrlDecoder().decode(parts[0]));
-      String kid = headerJson.replaceAll(".*\"kid\":\"([^\"]+)\".*", "$1");
-
-      // kid 일치하는 Apple 공개키 찾기
-      Map<?, ?> matchedKey =
-          keys.stream()
-              .filter(k -> kid.equals(((Map<?, ?>) k).get("kid")))
-              .map(k -> (Map<?, ?>) k)
-              .findFirst()
-              .orElseThrow(() -> new BusinessException(ErrorStatus.AUTH_OAUTH_FAILED));
-
-      // RSA 공개키 생성
-      byte[] nBytes = Base64.getUrlDecoder().decode((String) matchedKey.get("n"));
-      byte[] eBytes = Base64.getUrlDecoder().decode((String) matchedKey.get("e"));
-      PublicKey publicKey =
-          KeyFactory.getInstance("RSA")
-              .generatePublic(
-                  new RSAPublicKeySpec(new BigInteger(1, nBytes), new BigInteger(1, eBytes)));
-
-      // JWT 검증
-      Claims claims =
+      claims =
           Jwts.parser()
-              .verifyWith((java.security.interfaces.RSAPublicKey) publicKey)
+              .keyLocator(new ApplePublicKeyLocator(applePublicKeys))
+              .requireIssuer(appleIssuer)
+              .requireAudience(appleBundleId)
               .build()
               .parseSignedClaims(identityToken)
               .getPayload();
+    } catch (JwtException | IllegalArgumentException e) {
+      log.warn("Apple identity token validation failed: {}", e.getMessage());
+      throw new BusinessException(ErrorStatus.AUTH_APPLE_INVALID_TOKEN, e);
+    }
 
-      if (!appleBundleId.equals(claims.getAudience().iterator().next())) {
-        throw new BusinessException(ErrorStatus.AUTH_OAUTH_FAILED);
-      }
+    String providerId = claims.getSubject();
+    if (providerId == null || providerId.isBlank()) {
+      log.warn("Apple identity token missing sub claim");
+      throw new BusinessException(ErrorStatus.AUTH_APPLE_INVALID_TOKEN);
+    }
+    String email = claims.get("email", String.class);
 
-      String providerId = claims.getSubject();
-      String email = claims.get("email", String.class);
+    AuthResponse response = buildResponse("apple", providerId, email, fullName);
+    log.info(
+        "Apple login succeeded, userId={}, isNew={}", response.getUser().getId(), response.isNew());
+    return response;
+  }
 
-      return buildResponse("apple", providerId, email, fullName);
-    } catch (BusinessException e) {
-      throw e;
+  @SuppressWarnings("unchecked")
+  private List<Map<String, Object>> fetchApplePublicKeys() {
+    Map<?, ?> response;
+    try {
+      response =
+          webClientBuilder
+              .build()
+              .get()
+              .uri(appleKeysUrl)
+              .retrieve()
+              .bodyToMono(Map.class)
+              .timeout(Duration.ofSeconds(appleRequestTimeoutSeconds))
+              .block();
     } catch (Exception e) {
-      throw new BusinessException(ErrorStatus.AUTH_OAUTH_FAILED, e);
+      log.warn("Apple public keys fetch failed", e);
+      throw new BusinessException(ErrorStatus.AUTH_APPLE_KEY_UNAVAILABLE, e);
+    }
+    if (response == null || !(response.get("keys") instanceof List<?> keys) || keys.isEmpty()) {
+      log.warn("Apple public keys response was empty or malformed");
+      throw new BusinessException(ErrorStatus.AUTH_APPLE_KEY_UNAVAILABLE);
+    }
+    return keys.stream().filter(Map.class::isInstance).map(k -> (Map<String, Object>) k).toList();
+  }
+
+  // kid 기반으로 Apple 공개키를 선택. JJWT가 서명 검증·exp 만료 검증을 담당한다.
+  private static class ApplePublicKeyLocator extends LocatorAdapter<Key> {
+    private final List<Map<String, Object>> keys;
+
+    ApplePublicKeyLocator(List<Map<String, Object>> keys) {
+      this.keys = keys;
+    }
+
+    @Override
+    protected Key locate(ProtectedHeader header) {
+      String kid = header.getKeyId();
+      if (kid == null || kid.isBlank()) return null;
+      return keys.stream()
+          .filter(k -> kid.equals(k.get("kid")))
+          .findFirst()
+          .map(ApplePublicKeyLocator::toPublicKey)
+          .orElse(null);
+    }
+
+    private static PublicKey toPublicKey(Map<String, Object> key) {
+      try {
+        byte[] nBytes = Base64.getUrlDecoder().decode((String) key.get("n"));
+        byte[] eBytes = Base64.getUrlDecoder().decode((String) key.get("e"));
+        return KeyFactory.getInstance("RSA")
+            .generatePublic(
+                new RSAPublicKeySpec(new BigInteger(1, nBytes), new BigInteger(1, eBytes)));
+      } catch (Exception e) {
+        return null;
+      }
     }
   }
 

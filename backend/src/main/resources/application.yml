@@ -22,6 +22,8 @@ kakao:
 apple:
   bundle-id: com.minnnj.offmode
   keys-url: https://appleid.apple.com/auth/keys
+  issuer: https://appleid.apple.com
+  request-timeout-seconds: 5
 
 file:
   upload-dir: ${FILE_UPLOAD_DIR:./uploads}
